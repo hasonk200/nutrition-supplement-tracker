@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>補給手帳 · 營養補充品追蹤</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;600;700&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+<style>
+  :root{
+    --paper:#F6F1E6; --paper-deep:#EDE5D2; --card:#FCFAF3;
+    --ink:#22382E; --ink-soft:#5C6B60; --line:#D8CFBB; --line-soft:#E4DCC9;
+    --accent:#C0762C; --danger:#A6402F;
+    --serif:'Noto Serif TC',serif; --sans:'Noto Sans TC',sans-serif;
+  }
+  *{ margin:0; padding:0; box-sizing:border-box; }
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    background:var(--paper); color:var(--ink); font-family:var(--sans);
+    font-size:14px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  body::after{
+    content:''; position:fixed; inset:0; pointer-events:none; z-index:2000; opacity:.045;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  }
+  .wrap{ max-width:900px; margin:0 auto; padding:52px 26px 110px; }
+  button{ font-family:inherit; cursor:pointer; }
+
+  /* ── 頁首 ───────────────────── */
+  header{ display:flex; justify-content:space-between; align-items:flex-end; gap:16px;
+          padding-bottom:22px; border-bottom:2px solid var(--ink); }
+  h1{ font-family:var(--serif); font-weight:700; font-size:clamp(28px,5vw,40px);
+      letter-spacing:.14em; line-height:1.2; }
+  .sub{ margin-top:9px; font-size:11px; letter-spacing:.38em; color:var(--ink-soft);
+        text-transform:uppercase; }
+  .today{ text-align:right; font-family:var(--serif); }
+  .today .hd-big{ font-size:clamp(20px,3vw,26px); font-weight:600; }
+  .today .hd-sub{ font-size:12px; color:var(--ink-soft); letter-spacing:.15em; margin-top:3px; }
+
+  /* ── 摘要列 ─────────────────── */
+  .summary{ display:flex; flex-wrap:wrap; padding:20px 0 18px; border-bottom:1px solid var(--line); }
+  .stat{ padding-right:26px; margin-right:26px; border-right:1px solid var(--line); }
+  .stat:last-child{ border-right:none; margin-right:0; padding-right:0; }
+  .stat .num{ font-family:var(--serif); font-size:25px; font-weight:600; line-height:1.15;
+              font-variant-numeric:tabular-nums; }
+  .stat .num .unit{ font-size:14px; margin-left:2px; }
+  .stat .num .dim{ color:var(--line); font-weight:500; padding:0 2px; }
+  .stat.amber .num{ color:var(--accent); }
+  .stat .label{ font-size:11px; color:var(--ink-soft); letter-spacing:.14em; margin-top:3px; }
+  .dotrow{ display:flex; gap:5px; margin-top:6px; }
+  .d{ width:9px; height:9px; border-radius:50%; border:1.5px solid var(--line); }
+  .d.on{ background:var(--c); border-color:var(--c); }
+
+  /* ── 工具列 ─────────────────── */
+  .toolbar{ display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;
+            gap:14px; margin:24px 0 4px; }
+  .cats{ display:flex; flex-wrap:wrap; gap:8px; }
+  .chip-btn{ display:inline-flex; align-items:center; gap:6px; padding:5px 13px;
+             border:1px solid var(--line); border-radius:999px; background:transparent;
+             color:var(--ink-soft); font-size:12px; letter-spacing:.04em; transition:.18s; }
+  .chip-btn .cdot{ width:8px; height:8px; border-radius:50%; flex:none; }
+  .chip-btn b{ font-weight:500; opacity:.65; }
+  .chip-btn:hover{ border-color:var(--ink); color:var(--ink); }
+  .chip-btn.sel{ background:var(--ink); border-color:var(--ink); color:var(--paper); }
+  .add-btn{ display:inline-flex; align-items:center; gap:7px; background:var(--ink);
+            color:var(--paper); border:none; border-radius:999px; padding:9px 20px;
+            font-size:13.5px; letter-spacing:.1em; transition:.2s; }
+  .add-btn svg{ width:15px; height:15px; }
+  .add-btn:hover{ background:#152620; transform:translateY(-1px); box-shadow:0 6px 16px rgba(34,56,46,.28); }
+
+  /* ── 品項清單（帳本列式） ───── */
+  .item{ position:relative; display:grid; grid-template-columns:1fr auto auto;
+         grid-template-areas:"main side actions"; gap:6px 22px;
+         padding:19px 16px 17px; border-bottom:1px solid var(--line); transition:background .2s; }
+  .item::before{ content:''; position:absolute; left:0; top:15px; bottom:15px; width:4px;
+                 border-radius:2px; background:var(--cat); }
+  .item:hover{ background:rgba(34,56,46,.04); }
+  .item.done{ opacity:.55; }
+  .item.done:hover{ background:transparent; }
+
+  .item-main{ grid-area:main; min-width:0; padding-left:4px; }
+  .row1{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; }
+  .name{ font-family:var(--serif); font-weight:600; font-size:17.5px; letter-spacing:.03em; }
+  .cat-tag{ display:inline-flex; align-items:center; gap:5px; font-size:11.5px;
+            color:var(--ink-soft); letter-spacing:.08em; }
+  .cat-tag .cdot{ width:7px; height:7px; border-radius:50%; }
+  .meta{ font-size:12.5px; color:var(--ink-soft); margin:5px 0 11px;
+         font-variant-numeric:tabular-nums; }
+  .bar{ height:5px; background:var(--line-soft); border-radius:3px; overflow:hidden; }
+  .bar-fill{ height:100%; border-radius:3px; transition:width .55s cubic-bezier(.22,1,.3,1); }
+  .bar-info{ display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap;
+             font-size:11.5px; color:var(--ink-soft); margin-top:6px;
+             font-variant-numeric:tabular-nums; }
+
+  .item-side{ grid-area:side; display:flex; flex-direction:column; align-items:flex-end;
+              justify-content:center; text-align:right; min-width:96px; }
+  .big{ font-family:var(--serif); font-weight:700; font-size:30px; line-height:1;
+        font-variant-numeric:tabular-nums; }
+  .big.warn{ color:var(--accent); }
+  .big.txt{ font-size:19px; letter-spacing:.1em; }
+  .side-label{ font-size:11px; color:var(--ink-soft); margin-top:4px; max-width:120px;
+              line-height:1.45; letter-spacing:.03em; }
+
+  .item-actions{ grid-area:actions; display:flex; flex-direction:column; align-items:center;
+                 justify-content:center; gap:7px; }
+  .act-row{ display:flex; gap:6px; }
+  .take-btn{ position:relative; width:42px; height:42px; border-radius:50%;
+             border:1.5px solid var(--ink); background:transparent; color:var(--ink);
+             display:flex; align-items:center; justify-content:center; transition:.2s; }
+  .take-btn svg{ width:19px; height:19px; }
+  .take-btn:hover{ background:var(--ink); color:var(--paper); }
+  .take-btn.taken{ background:var(--ink); color:var(--paper); }
+  .take-btn.pulse{ animation:pop .38s ease; }
+  @keyframes pop{ 0%{transform:scale(.82)} 55%{transform:scale(1.1)} 100%{transform:scale(1)} }
+  .float{ position:absolute; left:50%; top:-4px; transform:translateX(-50%);
+          font-size:12.5px; font-weight:700; color:var(--accent); white-space:nowrap;
+          animation:floatUp .95s ease-out forwards; pointer-events:none; }
+  @keyframes floatUp{ 0%{opacity:0; transform:translate(-50%,6px)} 25%{opacity:1}
+                      100%{opacity:0; transform:translate(-50%,-28px)} }
+  .icon-btn{ width:32px; height:32px; border-radius:9px; border:1px solid transparent;
+             background:transparent; color:var(--ink-soft); display:flex; align-items:center;
+             justify-content:center; transition:.18s; }
+  .icon-btn svg{ width:16px; height:16px; }
+  .icon-btn:hover{ border-color:var(--line); color:var(--ink); background:var(--card); }
+
+  .confirm-bar{ grid-area:2/1/3/4; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+                background:#F2E2DA; border-left:3px solid var(--danger); border-radius:6px;
+                padding:9px 14px; margin-top:10px; font-size:13px; }
+  .mini-btn{ border:none; border-radius:6px; padding:5px 14px; font-size:12.5px; }
+  .mini-btn.danger{ background:var(--danger); color:#FCF8F2; }
+  .mini-btn.ghost{ background:transparent; color:var(--ink-soft); }
+  .mini-btn.ghost:hover{ color:var(--ink); }
+
+  .done-divider{ display:flex; align-items:center; gap:14px; margin:36px 0 2px;
+                 color:var(--ink-soft); font-size:11px; letter-spacing:.3em; }
+  .dl-line{ flex:1; border-top:1px dashed var(--line); }
+
+  /* ── 空狀態 ─────────────────── */
+  .empty{ text-align:center; padding:70px 20px 40px; }
+  .empty svg{ opacity:.9; }
+  .empty h3{ font-family:var(--serif); font-size:19px; letter-spacing:.12em; margin-top:22px; }
+  .empty p{ color:var(--ink-soft); font-size:13px; margin:8px 0 24px; }
+  .empty-sub{ text-align:center; padding:44px 20px; color:var(--ink-soft); font-size:13px; }
+
+  footer{ margin-top:52px; text-align:center; font-size:11px; color:var(--ink-soft);
+          letter-spacing:.12em; }
+
+  /* ── 抽屜表單 ───────────────── */
+  #overlay{ position:fixed; inset:0; background:rgba(34,56,46,.38); opacity:0;
+            pointer-events:none; transition:opacity .3s; z-index:40; }
+  #overlay.on{ opacity:1; pointer-events:auto; }
+  #drawer{ position:fixed; top:0; right:0; bottom:0; width:min(440px,94vw);
+           background:var(--card); box-shadow:-14px 0 44px rgba(20,32,26,.22);
+           transform:translateX(105%); transition:transform .38s cubic-bezier(.22,1,.3,1);
+           z-index:50; display:flex; flex-direction:column; }
+  #drawer.on{ transform:none; }
+  .drawer-head{ display:flex; justify-content:space-between; align-items:center;
+                padding:22px 26px 16px; border-bottom:1px solid var(--line); }
+  .drawer-head h2{ font-family:var(--serif); font-size:20px; letter-spacing:.1em; }
+  .drawer-body{ flex:1; overflow-y:auto; padding:6px 26px 20px; }
+  .group{ display:flex; align-items:center; gap:12px; margin:26px 0 16px;
+          font-size:11.5px; letter-spacing:.3em; color:var(--ink-soft); }
+  .group::before,.group::after{ content:''; flex:1; height:1px; background:var(--line); }
+  .f{ margin-bottom:16px; }
+  .f-label{ display:block; font-size:12px; color:var(--ink-soft); letter-spacing:.1em;
+            margin-bottom:6px; }
+  .f-input{ width:100%; background:transparent; border:none;
+            border-bottom:1.5px solid var(--line); border-radius:0; padding:8px 2px;
+            font-size:15px; font-family:inherit; color:var(--ink); transition:border-color .2s; }
+  .f-input:focus{ outline:none; border-bottom-color:var(--ink); }
+  .f-input::placeholder{ color:#B9AF98; }
+  select.f-input{ border:1px solid var(--line); border-radius:9px; padding:9px 10px;
+                  appearance:auto; }
+  select.f-input:focus{ border-color:var(--ink); outline:none; }
+  .f-row{ display:flex; gap:18px; } .f-row>div{ flex:1; min-width:0; }
+  .hint{ font-size:11px; color:#A79D85; margin-top:4px; }
+  .f-err{ display:none; color:var(--danger); font-size:11.5px; margin-top:4px; }
+  .dcats{ display:flex; flex-wrap:wrap; gap:8px; }
+  .dcat{ display:inline-flex; align-items:center; gap:6px; padding:6px 13px;
+         border:1px solid var(--line); border-radius:999px; background:transparent;
+         font-size:12.5px; color:var(--ink-soft); transition:.16s; }
+  .dcat .cdot{ width:8px; height:8px; border-radius:50%; }
+  .dcat:hover{ border-color:var(--ink); color:var(--ink); }
+  .dcat.sel{ color:var(--ink); font-weight:500; }
+  .drawer-foot{ display:flex; gap:12px; padding:16px 26px 22px; border-top:1px solid var(--line); }
+  .btn{ flex:1; border-radius:9px; padding:11px 0; font-size:14px; letter-spacing:.12em; }
+  .btn.solid{ background:var(--ink); color:var(--paper); border:none; }
+  .btn.solid:hover{ background:#152620; }
+  .btn.ghost{ background:transparent; color:var(--ink-soft); border:1px solid var(--line); }
+  .btn.ghost:hover{ color:var(--ink); border-color:var(--ink); }
+
+  /* ── Toast ──────────────────── */
+  #toast{ position:fixed; left:50%; bottom:30px; transform:translate(-50%,16px);
+          display:flex; align-items:center; gap:9px; background:var(--ink); color:var(--paper);
+          padding:11px 20px; border-radius:9px; font-size:13.5px; letter-spacing:.04em;
+          opacity:0; transition:.32s; z-index:99; pointer-events:none;
+          box-shadow:0 10px 26px rgba(34,56,46,.38); max-width:88vw; }
+  #toast.on{ opacity:1; transform:translate(-50%,0); }
+  #toast svg{ width:15px; height:15px; flex:none; }
+
+  /* ── RWD ────────────────────── */
+  @media (max-width:640px){
+    .wrap{ padding:34px 18px 90px; }
+    header{ flex-direction:column; align-items:flex-start; gap:8px; }
+    .today{ text-align:left; }
+    .stat{ border:none; margin-right:0; padding-right:0; width:50%; margin-bottom:10px; }
+    .item{ grid-template-columns:1fr auto; grid-template-areas:"main main" "side actions"; }
+    .item-side{ align-items:flex-start; text-align:left; }
+    .item-actions{ justify-self:end; flex-direction:row; align-items:center; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>補給手帳</h1>
+      <div class="sub">Supplement Ledger · 營養補充品紀錄</div>
+    </div>
+    <div class="today" id="today"></div>
+  </header>
+
+  <section class="summary" id="summary"></section>
+
+  <div class="toolbar">
+    <div class="cats" id="cats"></div>
+    <button class="add-btn" id="btn-add"><i data-lucide="plus"></i>新增品項</button>
+  </div>
+
+  <main id="list"></main>
+
+  <footer>資料僅儲存在此瀏覽器（localStorage）· 更換裝置前請自行備份</footer>
+</div>
+
+<!-- 抽屜表單 -->
+<div id="overlay"></div>
+<aside id="drawer">
+  <div class="drawer-head">
+    <h2 id="drawer-title">新增品項</h2>
+    <button class="icon-btn" id="btn-close" title="關閉"><i data-lucide="x"></i></button>
+  </div>
+  <form id="form" novalidate>
+    <div class="drawer-body">
+      <div class="group">基本資料</div>
+      <div class="f">
+        <label class="f-label">品名</label>
+        <input class="f-input" id="f-name" placeholder="例如：魚油 Omega-3" autocomplete="off">
+        <div class="f-err" id="e-name"></div>
+      </div>
+      <div class="f">
+        <label class="f-label">類別</label>
+        <div class="dcats" id="f-cats"></div>
+      </div>
+
+      <div class="group">劑量與規格</div>
+      <div class="f-row f">
+        <div>
+          <label class="f-label">每份含量</label>
+          <input class="f-input" id="f-dose" type="number" min="0" step="any" placeholder="500">
+        </div>
+        <div>
+          <label class="f-label">含量單位</label>
+          <select class="f-input" id="f-dose-unit">
+            <option value="mg">mg</option><option value="g">g</option>
+            <option value="mcg">mcg</option><option value="IU">IU</option>
+            <option value="ml">ml</option><option value="億 CFU">億 CFU</option>
+            <option value="">不標示</option>
+          </select>
+        </div>
+      </div>
+      <div class="f-row f">
+        <div>
+          <label class="f-label">包裝數量</label>
+          <input class="f-input" id="f-qty" type="number" min="1" step="any" placeholder="90">
+          <div class="f-err" id="e-qty"></div>
+        </div>
+        <div>
+          <label class="f-label">包裝單位</label>
+          <select class="f-input" id="f-pack">
+            <option>顆</option><option>錠</option><option>膠囊</option><option>包</option>
+            <option>匙</option><option>滴</option><option>軟糖</option><option>瓶</option>
+          </select>
+        </div>
+      </div>
+      <div class="f">
+        <label class="f-label">每日用量（份數）</label>
+        <input class="f-input" id="f-daily" type="number" min="0" step="any" placeholder="1">
+        <div class="hint">每天服用的份數，例如 1；隔天一顆可填 0.5，備存中可填 0</div>
+        <div class="f-err" id="e-daily"></div>
+      </div>
+
+      <div class="group">購買與服用</div>
+      <div class="f-row f">
+        <div>
+          <label class="f-label">價格（NT$）</label>
+          <input class="f-input" id="f-price" type="number" min="0" step="any" placeholder="650">
+          <div class="f-err" id="e-price"></div>
+        </div>
+        <div>
+          <label class="f-label">購買日期</label>
+          <input class="f-input" id="f-purchase" type="date">
+          <div class="f-err" id="e-purchase"></div>
+        </div>
+      </div>
+      <div class="f-row f">
+        <div>
+          <label class="f-label">開始服用日期</label>
+          <input class="f-input" id="f-start" type="date">
+          <div class="hint">留空則以購買日計算</div>
+        </div>
+        <div>
+          <label class="f-label">已服用份數</label>
+          <input class="f-input" id="f-taken" type="number" min="0" step="any" placeholder="0">
+          <div class="f-err" id="e-taken"></div>
+        </div>
+      </div>
+    </div>
+    <div class="drawer-foot">
+      <button type="button" class="btn ghost" id="btn-cancel">取消</button>
+      <button type="submit" class="btn solid">儲存品項</button>
+    </div>
+  </form>
+</aside>
+
+<div id="toast"></div>
+
+<script>
+/* ══════════ 基礎資料 ══════════ */
+const CATS = [
+  { id:'vitamin',   name:'維生素',       color:'#C0762C' },
+  { id:'mineral',   name:'礦物質',       color:'#5E7F74' },
+  { id:'omega',     name:'魚油 / Omega', color:'#33586B' },
+  { id:'probiotic', name:'益生菌',       color:'#B56576' },
+  { id:'protein',   name:'蛋白 / 胺基酸', color:'#8A5A44' },
+  { id:'herbal',    name:'草本植物',     color:'#6B7A3A' },
+  { id:'enzyme',    name:'酵素 / 保健',  color:'#8A7E6F' },
+  { id:'other',     name:'其他',         color:'#4A4A44' },
+];
+const KEY = 'supplement-ledger-v1';
+
+/* ══════════ 工具函式（先全部定義完成，之後才初始化資料） ══════════ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const trimNum = x => (Math.round(x*100)/100).toString();
+const catOf = it => CATS.find(c => c.id === it.cat) || CATS[CATS.length-1];
+
+function fmtISO(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function todayISO(){ return fmtISO(new Date()); }
+function daysAgo(n){ const d = new Date(); d.setDate(d.getDate()-n); return fmtISO(d); }
+function addDays(iso, n){ const [y,m,d] = iso.split('-').map(Number); return fmtISO(new Date(y, m-1, d+n)); }
+function diffDays(a, b){
+  const [y1,m1,d1] = a.split('-').map(Number), [y2,m2,d2] = b.split('-').map(Number);
+  return Math.round((new Date(y2,m2-1,d2) - new Date(y1,m1-1,d1)) / 864e5);
+}
+function fmtCN(iso){
+  if(!iso) return '—';
+  const [y,m,d] = iso.split('-').map(Number);
+  return y === new Date().getFullYear() ? `${m}月${d}日` : `${y}/${m}/${d}`;
+}
+const fmtNT = n => 'NT$' + Math.round(n).toLocaleString('zh-TW');
+
+/* 每筆品項的衍生數據 */
+function calc(it){
+  const qty = it.quantity, taken = Math.min(it.takenCount, qty);
+  const remain = Math.max(qty - taken, 0);
+  const remainDays = it.dailyDose > 0 ? Math.ceil(remain / it.dailyDose) : null;
+  const pct = qty > 0 ? taken / qty : 0;
+  const perUnit = qty > 0 ? it.price / qty : 0;
+  const start = it.startDate || it.purchaseDate;
+  const daysOn = start ? Math.max(0, diffDays(start, todayISO())) : 0;
+  const finishDate = remainDays !== null && remain > 0 ? addDays(todayISO(), remainDays) : null;
+  return { remain, remainDays, pct, perUnit, daysOn, finishDate };
+}
+
+/* ══════════ 狀態（此時所有工具都已就緒） ══════════ */
+let items = load() || seed();
+let filter = 'all', confirmId = null, editingId = null, selCat = 'vitamin', toastTimer = null;
+
+/* ══════════ 儲存 ══════════ */
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(items)); }catch(e){} }
+function load(){
+  try{ const s = localStorage.getItem(KEY); return s ? JSON.parse(s) : null; }catch(e){ return null; }
+}
+
+/* 首次開啟的範例資料（日期以今天回推，方便直接體驗） */
+function seed(){
+  return [
+    { id:uid(), name:'綜合維他命 B 群', cat:'vitamin',  doseWeight:null, doseUnit:'',      quantity:60,  packUnit:'顆',   dailyDose:1, price:450, purchaseDate:daysAgo(62),  startDate:daysAgo(62),  takenCount:50, lastTakenDate:null,      status:'active' },
+    { id:uid(), name:'魚油 Omega-3',     cat:'omega',   doseWeight:1000, doseUnit:'mg',    quantity:90,  packUnit:'膠囊', dailyDose:2, price:880, purchaseDate:daysAgo(30),  startDate:daysAgo(30),  takenCount:60, lastTakenDate:todayISO(), status:'active' },
+    { id:uid(), name:'益生菌 100 億',    cat:'probiotic',doseWeight:100,  doseUnit:'億 CFU',quantity:30,  packUnit:'包',   dailyDose:1, price:990, purchaseDate:daysAgo(12),  startDate:daysAgo(12),  takenCount:12, lastTakenDate:null,      status:'active' },
+    { id:uid(), name:'檸檬酸鎂',         cat:'mineral', doseWeight:400,  doseUnit:'mg',    quantity:120, packUnit:'錠',   dailyDose:1, price:560, purchaseDate:daysAgo(90),  startDate:daysAgo(90),  takenCount:85, lastTakenDate:todayISO(), status:'active' },
+    { id:uid(), name:'維他命 D3',        cat:'vitamin', doseWeight:2000, doseUnit:'IU',    quantity:90,  packUnit:'顆',   dailyDose:1, price:380, purchaseDate:daysAgo(120), startDate:daysAgo(120), takenCount:90, lastTakenDate:daysAgo(2), status:'finished' },
+  ];
+}
+
+/* ══════════ 渲染 ══════════ */
+function render(){
+  renderToday(); renderSummary(); renderChips(); renderList();
+  if(window.lucide) lucide.createIcons();
+}
+
+function renderToday(){
+  const d = new Date();
+  $('today').innerHTML =
+    `<div class="hd-big">${d.getMonth()+1}月${d.getDate()}日</div>
+     <div class="hd-sub">${d.getFullYear()} 年 · 星期${'日一二三四五六'[d.getDay()]}</div>`;
+}
+
+function renderSummary(){
+  const t = todayISO();
+  const act = items.filter(i => i.status === 'active');
+  const doneToday = act.filter(i => i.lastTakenDate === t).length;
+  let residual = 0;
+  act.forEach(i => residual += Math.max(0, i.quantity - i.takenCount) * (i.quantity ? i.price / i.quantity : 0));
+  const ym = t.slice(0,7);
+  const monthSpend = items.filter(i => (i.purchaseDate||'').slice(0,7) === ym)
+                          .reduce((s,i) => s + (+i.price || 0), 0);
+  const dots = act.slice(0,10).map(i =>
+    `<i class="d ${i.lastTakenDate===t?'on':''}" style="--c:${catOf(i).color}"></i>`).join('');
+  $('summary').innerHTML = `
+    <div class="stat"><div class="num">${act.length}<span class="unit">項</span></div><div class="label">服用中品項</div></div>
+    <div class="stat"><div class="num">${doneToday}<span class="dim">/</span>${act.length}</div>
+      <div class="label">今日已打卡</div>${dots ? `<div class="dotrow">${dots}</div>` : ''}</div>
+    <div class="stat"><div class="num">${fmtNT(residual)}</div><div class="label">庫存殘值</div></div>
+    <div class="stat amber"><div class="num">${fmtNT(monthSpend)}</div><div class="label">本月支出</div></div>`;
+}
+
+function renderChips(){
+  const act = items.filter(i => i.status === 'active');
+  const counts = {};
+  act.forEach(i => counts[i.cat] = (counts[i.cat]||0) + 1);
+  $('cats').innerHTML =
+    `<button class="chip-btn ${filter==='all'?'sel':''}" data-cat="all"><b>全部</b> ${act.length}</button>` +
+    CATS.map(c =>
+      `<button class="chip-btn ${filter===c.id?'sel':''}" data-cat="${c.id}">
+        <i class="cdot" style="background:${c.color}"></i>${c.name} <b>${counts[c.id]||0}</b>
+      </button>`).join('');
+}
+
+function itemRow(it){
+  const c = catOf(it), k = calc(it), active = it.status === 'active';
+  const t = todayISO(), takenToday = it.lastTakenDate === t;
+
+  /* 規格資訊行 */
+  const bits = [];
+  if(it.doseWeight && it.doseUnit) bits.push(`${trimNum(it.doseWeight)} ${it.doseUnit}`);
+  bits.push(`${trimNum(it.quantity)} ${it.packUnit}`);
+  bits.push(fmtNT(it.price));
+  if(k.perUnit > 0) bits.push(`每 ${it.packUnit} NT$${trimNum(k.perUnit)}`);
+  if(it.dailyDose > 0)
+    bits.push(`每日 ${trimNum(it.dailyDose)} ${it.packUnit}${k.perUnit>0 ? '・NT$'+trimNum(k.perUnit*it.dailyDose) : ''}`);
+
+  /* 右側摘要 */
+  let big, label, warn = false;
+  if(active){
+    if(k.remainDays !== null){
+      warn = k.remainDays <= 10;
+      big = k.remainDays;
+      label = (warn ? '快用完 · ' : '') + (k.finishDate ? `約 ${fmtCN(k.finishDate)} 用完` : '剩餘天數');
+    } else {
+      big = k.remain; label = `剩餘 ${it.packUnit} 數`;
+    }
+  } else {
+    big = '已用完'; label = `共追蹤 ${k.daysOn} 天`;
+  }
+
+  return `
+  <div class="item ${active?'':'done'}" data-id="${it.id}" style="--cat:${c.color}">
+    <div class="item-main">
+      <div class="row1">
+        <span class="name">${esc(it.name)}</span>
+        <span class="cat-tag"><i class="cdot" style="background:${c.color}"></i>${c.name}</span>
+      </div>
+      <div class="meta">${bits.join(' · ')}</div>
+      <div class="bar"><div class="bar-fill" data-w="${(k.pct*100).toFixed(1)}%" style="width:0;background:${c.color}"></div></div>
+      <div class="bar-info">
+        <span>已服 ${trimNum(it.takenCount)} / ${trimNum(it.quantity)}</span>
+        <span>購於 ${fmtCN(it.purchaseDate)}${k.daysOn>0 ? ' · 已 '+k.daysOn+' 天' : ''}</span>
+      </div>
+    </div>
+    <div class="item-side">
+      <div class="big ${warn?'warn':''} ${active?'':'txt'}">${big}</div>
+      <div class="side-label">${label}</div>
+    </div>
+    <div class="item-actions">
+      ${active
+        ? `<button class="take-btn ${takenToday?'taken':''}" data-act="take"
+             title="${takenToday ? '點一下可取消今日打卡' : '記錄今日已服用'}"><i data-lucide="check"></i></button>`
+        : `<button class="take-btn taken" data-act="repo" title="記錄回購（重置為今天購入）">
+             <i data-lucide="rotate-ccw"></i></button>`}
+      <div class="act-row">
+        <button class="icon-btn" data-act="edit" title="編輯"><i data-lucide="pencil"></i></button>
+        <button class="icon-btn" data-act="del" title="刪除"><i data-lucide="trash-2"></i></button>
+      </div>
+    </div>
+    ${confirmId === it.id ? `
+    <div class="confirm-bar">
+      <span>確定要刪除「${esc(it.name)}」嗎？此紀錄無法復原。</span>
+      <button class="mini-btn danger" data-act="del-yes">刪除</button>
+      <button class="mini-btn ghost" data-act="del-no">取消</button>
+    </div>` : ''}
+  </div>`;
+}
+
+function renderList(){
+  const listEl = $('list');
+  const pool = items.filter(i => filter === 'all' || i.cat === filter);
+  if(pool.length === 0){
+    listEl.innerHTML = items.length === 0 ? `
+      <div class="empty">
+        <svg width="130" height="66" viewBox="0 0 130 66" fill="none"
+             style="transform:rotate(-7deg)">
+          <rect x="8" y="20" width="114" height="26" rx="13" stroke="#22382E" stroke-width="2.2"/>
+          <line x1="65" y1="20" x2="65" y2="46" stroke="#22382E" stroke-width="2.2"/>
+          <path d="M26 33h1M38 33h1M50 33h1" stroke="#C0762C" stroke-width="4" stroke-linecap="round"/>
+          <path d="M80 33h1M92 33h1M104 33h1" stroke="#5E7F74" stroke-width="4" stroke-linecap="round"/>
+        </svg>
+        <h3>手帳還是空的</h3>
+        <p>把你正在吃的營養補充品記進來，<br>追蹤剩餘量、花費與回購時間。</p>
+        <button class="add-btn" data-act="new"><i data-lucide="plus"></i>新增第一項</button>
+      </div>` : `<div class="empty-sub">這個類別還沒有品項紀錄。</div>`;
+    return;
+  }
+  /* 服用中：快用完的排前面（補貨視角）；已用完的移到後段 */
+  const act = pool.filter(i => i.status === 'active').sort((a,b) => {
+    const ra = calc(a).remainDays ?? 1e9, rb = calc(b).remainDays ?? 1e9;
+    return ra - rb;
+  });
+  const fin = pool.filter(i => i.status === 'finished')
+                  .sort((a,b) => (b.startDate||'').localeCompare(a.startDate||''));
+  listEl.innerHTML = act.map(itemRow).join('') +
+    (fin.length ? `<div class="done-divider"><span class="dl-line"></span>已完成<span class="dl-line"></span></div>` +
+      fin.map(itemRow).join('') : '');
+
+  /* 進度條生長動畫 */
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    listEl.querySelectorAll('.bar-fill').forEach(el => el.style.width = el.dataset.w);
+  }));
+}
+
+/* ══════════ 互動行為 ══════════ */
+function toast(msg, icon = 'check'){
+  const el = $('toast');
+  el.innerHTML = `<i data-lucide="${icon}"></i><span>${esc(msg)}</span>`;
+  el.classList.add('on');
+  if(window.lucide) lucide.createIcons();
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 2600);
+}
+
+function spawnFloat(btn, dose, unit){
+  const s = document.createElement('span');
+  s.className = 'float';
+  s.textContent = `+${trimNum(dose)} ${unit}`;
+  btn.appendChild(s);
+  setTimeout(() => s.remove(), 950);
+}
+
+function toggleTake(it){
+  const t = todayISO();
+  if(it.lastTakenDate === t){                       /* 撤銷今日打卡 */
+    it.takenCount = Math.max(0, it.takenCount - it.dailyDose);
+    it.lastTakenDate = null;
+    if(it.takenCount < it.quantity) it.status = 'active';
+    save(); render();
+    toast(`已取消「${it.name}」今日打卡`, 'undo-2');
+    return;
+  }
+  const wasFinished = it.status === 'finished';
+  it.lastTakenDate = t;
+  it.takenCount = Math.min(it.quantity, it.takenCount + it.dailyDose);
+  if(it.takenCount >= it.quantity) it.status = 'finished';
+  const delta = it.dailyDose;
+  save(); render();
+  const btn = document.querySelector(`.item[data-id="${it.id}"] .take-btn`);
+  if(btn){
+    spawnFloat(btn, delta, it.packUnit);
+    btn.classList.add('pulse');
+    setTimeout(() => btn.classList.remove('pulse'), 420);
+  }
+  if(!wasFinished && it.status === 'finished')
+    toast(`「${it.name}」用完了！可以按返回鍵記錄回購`, 'rotate-ccw');
+  else
+    toast(`已記錄今日服用 ${trimNum(delta)} ${it.packUnit}`, 'check');
+}
+
+function repurchase(it){
+  it.purchaseDate = todayISO();
+  it.startDate = todayISO();
+  it.takenCount = 0;
+  it.lastTakenDate = null;
+  it.status = 'active';
+  save(); render();
+  toast(`已記錄回購「${it.name}」，服用紀錄歸零重算`, 'rotate-ccw');
+}
+
+/* 清單事件（委派） */
+ $('list').addEventListener('click', e => {
+  const b = e.target.closest('[data-act]');
+  if(!b) return;
+  const id = e.target.closest('.item')?.dataset.id;
+  const it = items.find(x => x.id === id);
+  switch(b.dataset.act){
+    case 'new':    openDrawer(); break;
+    case 'take':   if(it) toggleTake(it); break;
+    case 'edit':   if(it) openDrawer(it); break;
+    case 'del':    confirmId = id; render(); break;
+    case 'del-no': confirmId = null; render(); break;
+    case 'del-yes':
+      if(it){ items = items.filter(x => x.id !== id); confirmId = null; save(); render();
+              toast(`已刪除「${it.name}」`, 'trash-2'); }
+      break;
+    case 'repo':   if(it) repurchase(it); break;
+  }
+});
+
+/* 分類篩選 */
+ $('cats').addEventListener('click', e => {
+  const b = e.target.closest('[data-cat]');
+  if(!b) return;
+  filter = b.dataset.cat;
+  renderChips(); renderList();
+  if(window.lucide) lucide.createIcons();
+});
+
+/* ══════════ 抽屜表單 ══════════ */
+function renderCatChips(){
+  $('f-cats').innerHTML = CATS.map(c =>
+    `<button type="button" class="dcat ${selCat===c.id?'sel':''}" data-cat="${c.id}"
+       style="${selCat===c.id ? `border-color:${c.color};background:${c.color}14` : ''}">
+       <i class="cdot" style="background:${c.color}"></i>${c.name}</button>`).join('');
+}
+ $('f-cats').addEventListener('click', e => {
+  const b = e.target.closest('[data-cat]');
+  if(!b) return;
+  selCat = b.dataset.cat;
+  renderCatChips();
+});
+
+function setErr(id, msg){
+  const el = $(id);
+  el.textContent = msg || '';
+  el.style.display = msg ? 'block' : 'none';
+}
+
+function openDrawer(it = null){
+  editingId = it ? it.id : null;
+  confirmId = null;
+  $('drawer-title').textContent = it ? '編輯品項' : '新增品項';
+  selCat = it ? it.cat : 'vitamin';
+  renderCatChips();
+  $('f-name').value      = it?.name || '';
+  $('f-dose').value      = it?.doseWeight ?? '';
+  $('f-dose-unit').value = it?.doseUnit ?? 'mg';
+  $('f-qty').value       = it?.quantity ?? '';
+  $('f-pack').value      = it?.packUnit ?? '顆';
+  $('f-daily').value     = it?.dailyDose ?? 1;
+  $('f-price').value     = it?.price ?? '';
+  $('f-purchase').value  = it?.purchaseDate || todayISO();
+  $('f-start').value     = it?.startDate || '';
+  $('f-taken').value     = it?.takenCount ?? 0;
+  ['e-name','e-qty','e-daily','e-price','e-purchase','e-taken'].forEach(id => setErr(id, ''));
+  $('overlay').classList.add('on');
+  $('drawer').classList.add('on');
+  setTimeout(() => $('f-name').focus(), 380);
+}
+
+function closeDrawer(){
+  $('overlay').classList.remove('on');
+  $('drawer').classList.remove('on');
+}
+
+ $('btn-add').addEventListener('click', () => openDrawer());
+ $('btn-close').addEventListener('click', closeDrawer);
+ $('btn-cancel').addEventListener('click', closeDrawer);
+ $('overlay').addEventListener('click', closeDrawer);
+document.addEventListener('keydown', e => {
+  if(e.key === 'Escape' && $('drawer').classList.contains('on')) closeDrawer();
+});
+
+/* 儲存表單 */
+ $('form').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = $('f-name').value.trim();
+  const qty = parseFloat($('f-qty').value);
+  const daily = parseFloat($('f-daily').value);
+  const price = $('f-price').value === '' ? 0 : parseFloat($('f-price').value);
+  const purchase = $('f-purchase').value;
+  const taken = $('f-taken').value === '' ? 0 : parseFloat($('f-taken').value);
+  const doseW = $('f-dose').value === '' ? null : parseFloat($('f-dose').value);
+
+  let ok = true;
+  if(!name){ setErr('e-name','請填寫品名'); ok = false; }
+  if(!(qty > 0)){ setErr('e-qty','請填寫大於 0 的數量'); ok = false; }
+  if(isNaN(daily) || daily < 0){ setErr('e-daily','請填寫 0 以上的每日用量'); ok = false; }
+  if(isNaN(price) || price < 0){ setErr('e-price','請填寫 0 以上的價格'); ok = false; }
+  if(!purchase){ setErr('e-purchase','請選擇購買日期'); ok = false; }
+  if(isNaN(taken) || taken < 0 || taken > qty){
+    setErr('e-taken', `請填寫 0 ～ ${trimNum(qty)} 之間的份數`); ok = false;
+  }
+  if(!ok) return;
+
+  const data = {
+    name, cat: selCat,
+    doseWeight: (doseW !== null && !isNaN(doseW)) ? doseW : null,
+    doseUnit: $('f-dose-unit').value,
+    quantity: qty, packUnit: $('f-pack').value,
+    dailyDose: isNaN(daily) ? 0 : daily, price,
+    purchaseDate: purchase, startDate: $('f-start').value,
+    takenCount: taken,
+  };
+
+  if(editingId){
+    const it = items.find(x => x.id === editingId);
+    Object.assign(it, data, { status: taken >= qty ? 'finished' : 'active' });
+    toast(`已更新「${name}」`, 'check');
+  } else {
+    items.push({ id: uid(), ...data, lastTakenDate: null,
+                 status: taken >= qty ? 'finished' : 'active' });
+    toast(`已新增「${name}」到手帳`, 'check');
+  }
+  save(); render(); closeDrawer();
+});
+
+/* ══════════ 啟動 ══════════ */
+render();
+</script>
+</body>
+</html>
